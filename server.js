@@ -12,8 +12,8 @@ const moment = require('moment');
 app.use(bodyParser.json());
 const connection = mysql.createConnection({
   host: 'localhost', // L'hôte de la base de données
-  user: 'root', // Votre nom d'utilisateur MySQL
-  password: 'donnemoiunebrique', // Votre mot de passe MySQL
+  user: 'admintest', // Votre nom d'utilisateur MySQL
+  password: 'root', // Votre mot de passe MySQL
   database: 'Lowrance' // Le nom de votre base de données
 });
 
@@ -237,6 +237,41 @@ app.post('/getuser', (req, res) => {
   });
 });
 
-app.listen(port, () => {
+app.listen(port,'0.0.0.0' ,() => {
   console.log(`Serveur démarré sur le port ${port}`);
+});
+
+
+app.post('/positions', async (req, res) => {
+  const { uuid } = req.body;
+
+  // Vérifier si le uuid est présent dans le corps de la requête
+  if (!uuid) {
+    return res.status(400).json({ error: 'UUID manquant dans la requête' });
+  }
+
+  // Vérifier si le uuid existe dans la table user
+  const userQuery = 'SELECT COUNT(*) AS count FROM user WHERE uuid = ?';
+  connection.query(userQuery, [uuid], (err, userResult) => {
+    if (err) {
+      console.error('Erreur lors de la vérification de l\'existence du uuid :', err);
+      return res.status(500).json({ error: 'Erreur interne du serveur' });
+    }
+
+    if (userResult[0].count === 0) {
+      return res.status(404).json({ error: 'UUID non trouvé dans la base de données' });
+    }
+
+    // Récupérer les données GPS de la table gpsdata
+    const gpsQuery = 'SELECT lattitude, longitude FROM gpsdata';
+    connection.query(gpsQuery, (err, gpsData) => {
+      if (err) {
+        console.error('Erreur lors de la récupération des données GPS :', err);
+        return res.status(500).json({ error: 'Erreur interne du serveur' });
+      }
+
+      // Renvoyer les données GPS vers le client
+      return res.status(200).json({ positions: gpsData });
+    });
+  });
 });
